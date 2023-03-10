@@ -114,12 +114,13 @@ impl RecvMsg {
     }
 
     /// return (if is a at msg, clean msg field's cq code)
-    pub fn pre_parse_msg(mut self) -> (bool, Self) {
-        lazy_static! {
-            static ref AT_MSG_RE: Regex = Regex::new(r#"CQ:at,qq=[0-9]*"#).unwrap();
-        }
+    pub fn pre_parse_msg(mut self, bot_id: u64) -> (bool, Self) {
+        // lazy_static! {
+        //     static ref AT_MSG_RE: Regex = Regex::new(r#"CQ:at,qq=[0-9]*"#).unwrap();
+        // }
+        let at_msg_re = Regex::new(format!("CQ:at,qq={}", bot_id).as_str()).unwrap();
         let mut is_at_msg = false;
-        if AT_MSG_RE.is_match(&self.raw_message) {
+        if at_msg_re.is_match(&self.raw_message) {
             is_at_msg = true;
         }
 
@@ -170,16 +171,16 @@ mod tests {
         let msg_str = r#"{"post_type":"message","message_type":"group","time":1678336087,"self_id":222,"sub_type":"normal","anonymous":null,"group_id":777,"raw_message":"[CQ:at,qq=222] 1","sender":{"age":0,"area":"","card":"","level":"","nickname":"Mr.Eucalypt","role":"member","sex":"unknown","title":"","user_id":999},"user_id":999,"message_id":1206430729,"font":0,"message":"[CQ:at,qq=222] 1","message_seq":134}"#;
         let recv_msg = serde_json::from_str::<RecvMsg>(msg_str).unwrap();
         println!("{:?}", recv_msg);
-        println!("{:?}", recv_msg.pre_parse_msg());
+        println!("{:?}", recv_msg.pre_parse_msg(222));
 
         let msg_str_2 = r#"{"post_type":"message","message_type":"private","time":1678336074,"self_id":222,"sub_type":"friend","target_id":222,"message":"柠檬茶 1","raw_message":"柠檬茶 1","font":0,"sender":{"age":0,"nickname":"Mr.Eucalypt","sex":"unknown","user_id":999},"message_id":-111094286,"user_id":999}"#;
         let recv_msg_2 = serde_json::from_str::<RecvMsg>(msg_str_2).unwrap();
         println!("{:?}", recv_msg_2);
-        println!("{:?}", recv_msg_2.pre_parse_msg());
+        println!("{:?}", recv_msg_2.pre_parse_msg(222));
 
         let msg_str_3 = r#"{"post_type":"message","message_type":"private","time":1678334227,"self_id":222,"sub_type":"friend","sender":{"age":0,"nickname":"Mr.Eucalypt","sex":"unknown","user_id":999},"message_id":67453260,"user_id":999,"target_id":222,"message":"[CQ:image,file=7ecb49dcfcdcca29feb728cf8811bb37.image,url=https://c2cpicdw.qpic.cn/offpic_new/999//999-3676750358-7ECB49DCFCDCCA29FEB728CF8811BB37/0?term=2\u0026amp;is_origin=0]","raw_message":"[CQ:image,file=7ecb49dcfcdcca29feb728cf8811bb37.image,url=https://c2cpicdw.qpic.cn/offpic_new/999//999-3676750358-7ECB49DCFCDCCA29FEB728CF8811BB37/0?term=2\u0026amp;is_origin=0]","font":0}"#;
         let recv_msg_3 = serde_json::from_str::<RecvMsg>(msg_str_3).unwrap();
         println!("{:?}", recv_msg_3);
-        println!("{:?}", recv_msg_3.pre_parse_msg());
+        println!("{:?}", recv_msg_3.pre_parse_msg(222));
     }
 }

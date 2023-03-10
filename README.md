@@ -25,10 +25,11 @@ Rust 实现，抽象了 cqhttp 的收发消息、openai ai 的消息对象，具
 
 ``` BASH
 $./qbot --help
-Usage: qbot [OPTIONS] <API_KEY>
+Usage: qbot [OPTIONS] <API_KEY> <QQ>
 
 Arguments:
-  <API_KEY>  openai api key
+  <API_KEY>  openai api key, start with `sk-`
+  <QQ>       bot qq, to determined if @ bot
 
 Options:
   -w, --websocket <WEBSOCKET>  cqhttp websocket address, default value is `ws://localhost:8080/ws`

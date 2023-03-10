@@ -21,6 +21,9 @@ struct Args {
 
     /// openai api key, start with `sk-`
     api_key: String,
+
+    /// bot qq, to determined if @ bot
+    qq: u64,
 }
 
 #[tokio::main]
@@ -28,7 +31,7 @@ async fn main() {
     let args = Args::parse();
     let cqhttp_ws = args.websocket.unwrap_or("ws://localhost:8080/ws".into());
 
-    let mut bot = Bot::new(&cqhttp_ws, args.proxy, args.api_key).await;
+    let mut bot = Bot::new(&cqhttp_ws, args.proxy, args.api_key, args.qq).await;
 
     bot.loop_read().await;
 }

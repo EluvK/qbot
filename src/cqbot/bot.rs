@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub struct Bot {
-    _qq: i64,
+    qq: u64,
     proxy_addr: Option<String>,
     api_key: String,
     web_socket_stream: Box<WebSocketStream<MaybeTlsStream<TcpStream>>>,
@@ -20,10 +20,10 @@ pub struct Bot {
 static OPENAIAPIURL: &str = "https://api.openai.com/v1/chat/completions";
 
 impl Bot {
-    pub async fn new(url: &str, proxy: Option<String>, api_key: String) -> Self {
+    pub async fn new(url: &str, proxy: Option<String>, api_key: String, qq: u64) -> Self {
         let (wss, _) = connect_async(url).await.expect("Fail to connect");
         Self {
-            _qq: 0,
+            qq,
             proxy_addr: proxy,
             api_key,
             web_socket_stream: Box::new(wss),
@@ -51,7 +51,7 @@ impl Bot {
         if let Message::Text(text) = message {
             // println!("Handle Text:{}", &text);
             let msg = serde_json::from_str::<RecvMsg>(&text).ok()?;
-            let (is_at, msg) = msg.pre_parse_msg();
+            let (is_at, msg) = msg.pre_parse_msg(self.qq);
             println!("is_at:{:?}, RecvMessage:{:?}", is_at, &msg);
             match msg.message_type() {
                 MessageType::Group => {
@@ -222,6 +222,7 @@ mod tests {
             "ws://localhost:8080/ws",
             Some("socks5h://127.0.0.1:1080".into()),
             "sk-xx".into(),
+            222,
         )
         .await;
         let return_message = bot
