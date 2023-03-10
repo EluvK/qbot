@@ -43,7 +43,10 @@ impl ChatContext {
 
     fn set_role(&mut self, role: &BotRole) {
         self.histories.clear();
-        self.histories.push(role.system_infomation())
+        self.role = role.clone();
+        role.system_infomation()
+            .iter()
+            .for_each(|m| self.histories.push(m.clone()));
     }
 }
 
@@ -118,6 +121,48 @@ impl PrivateManager {
     pub fn after_handle_private_message(&mut self, user_id: u64) {
         let chat_context = self.contexts.get_mut(&user_id).unwrap();
         chat_context.wait_gpt_reply = false;
+    }
+}
+
+pub struct GroupManager {
+    contexts: HashMap<u64, PrivateManager>,
+}
+
+impl GroupManager {
+    pub fn new() -> Self {
+        Self {
+            contexts: HashMap::new(),
+        }
+    }
+
+    pub fn pre_handle_private_message(
+        &mut self,
+        group_id: u64,
+        user_id: u64,
+        message: String,
+    ) -> Result<(), PrivateManagerError> {
+        self.contexts.entry(group_id).or_insert_with(|| PrivateManager::new());
+        let group_private_manager = self.contexts.get_mut(&group_id).unwrap();
+        group_private_manager.pre_handle_private_message(user_id, message)
+    }
+
+    pub fn get_histories(&mut self, group_id: u64, user_id: u64) -> Option<&Vec<GPTMessages>> {
+        self.contexts.get_mut(&group_id).unwrap().get_histories(user_id)
+    }
+
+    pub fn push_history(&mut self, group_id: u64, user_id: u64, msg: GPTMessages) {
+        self.contexts.get_mut(&group_id).unwrap().push_history(user_id, msg)
+    }
+
+    pub fn pop_history(&mut self, group_id: u64, user_id: u64) {
+        self.contexts.get_mut(&group_id).unwrap().pop_history(user_id)
+    }
+
+    pub fn after_handle_private_message(&mut self, group_id: u64, user_id: u64) {
+        self.contexts
+            .get_mut(&group_id)
+            .unwrap()
+            .after_handle_private_message(user_id)
     }
 }
 

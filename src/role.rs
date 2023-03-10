@@ -10,6 +10,7 @@ pub enum BotRole {
     Assistant,
     Taler,
     StoryTeller,
+    FoodCritic,
 }
 
 impl BotRole {
@@ -18,6 +19,7 @@ impl BotRole {
             "assistant" | "Assistant" | "default" | "Default" => Self::Assistant,
             "taler" => Self::Taler,
             "storyteller" => Self::StoryTeller,
+            "foodcritic" => Self::FoodCritic,
             _ => Self::Assistant,
         }
     }
@@ -29,13 +31,19 @@ impl BotRole {
             }
             BotRole::Taler => "I am now a fairy tale writer, I will help you write stories.",
             BotRole::StoryTeller => "I am now a story teller, I will help you wirte stories.",
+            BotRole::FoodCritic => "好的，请告诉我店名和食物名称。",
         }
     }
-    pub fn system_infomation(&self) -> GPTMessages {
+    pub fn system_infomation(&self) -> Vec<GPTMessages> {
         match self {
-            BotRole::Assistant => GPTMessages::new_system_message(ASSISTANT_SYSTEM_INFO.into()),
-            BotRole::Taler => GPTMessages::new_system_message(TALER_SYSTEM_INFO.into()),
-            BotRole::StoryTeller => GPTMessages::new_system_message(STORYTELLER_SYSTEM_INFO.into()),
+            BotRole::Assistant => vec![GPTMessages::new_system_message(ASSISTANT_SYSTEM_INFO.into())],
+            BotRole::Taler => vec![GPTMessages::new_system_message(TALER_SYSTEM_INFO.into())],
+            BotRole::StoryTeller => vec![GPTMessages::new_system_message(STORYTELLER_SYSTEM_INFO.into())],
+            BotRole::FoodCritic => vec![
+                GPTMessages::new_system_message("你是美食评论员，帮助编写美食的评论文章。".into()),
+                GPTMessages::new_user_message("接下来我会给你店名和食物的名称，生存一篇300字的评论，且注意评论食物的句子要简单但语气夸张，不要用重复的话，每行不超过30个字，换行要换两次，在每行的最前面加上几个不一样的emoji。".into()),
+                GPTMessages::new_assist_message("好的，请告诉我店名和食物名称。".into()),
+            ],
         }
     }
 }

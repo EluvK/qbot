@@ -5,7 +5,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, Web
 use crate::{
     cqbot::msg::{MessageType, RecvMsg, SendMsg},
     gpt::{GPTPostMessage, GPTRecvMessage},
-    private_manager::PrivateManager,
+    private_manager::{GroupManager, PrivateManager},
 };
 
 pub struct Bot {
@@ -14,6 +14,7 @@ pub struct Bot {
     api_key: String,
     web_socket_stream: Box<WebSocketStream<MaybeTlsStream<TcpStream>>>,
     private_manager: PrivateManager,
+    group_manager: GroupManager,
 }
 
 static OPENAIAPIURL: &str = "https://api.openai.com/v1/chat/completions";
@@ -27,6 +28,7 @@ impl Bot {
             api_key,
             web_socket_stream: Box::new(wss),
             private_manager: PrivateManager::new(),
+            group_manager: GroupManager::new(),
         }
     }
 
@@ -72,15 +74,48 @@ impl Bot {
     }
 
     async fn handler_group_message(&mut self, message: RecvMsg) -> SendMsg {
-        let post_message = GPTPostMessage::new_basic_message(message.message().clone());
-        let return_message = match self.post_gpt_request(post_message).await {
-            Ok(gpt_recv_msg) => {
-                let msg = gpt_recv_msg.get_return_msg().unwrap();
-                msg.into_contnet()
+        let group_id = message.group_id();
+        let user_id = message.user_id();
+        let gpm = self
+            .group_manager
+            .pre_handle_private_message(group_id, user_id, message.message().clone());
+
+        match gpm {
+            Ok(_) => {
+                // legal request
+                let post_message = GPTPostMessage::new_with_history(
+                    self.group_manager.get_histories(group_id, user_id).unwrap().clone(),
+                );
+                let return_message = match self.post_gpt_request(post_message).await {
+                    Ok(gpt_recv_msg) => {
+                        let msg = gpt_recv_msg.get_return_msg().unwrap();
+                        self.group_manager.push_history(group_id, user_id, msg.clone());
+                        msg.into_contnet()
+                    }
+                    Err(e) => {
+                        // todo might need to noted user to reset || clean
+                        self.group_manager.pop_history(group_id, user_id);
+                        e.to_string()
+                    }
+                };
+                self.group_manager.after_handle_private_message(group_id, user_id);
+                SendMsg::new_group_reply_msg_at(group_id, user_id, return_message)
             }
-            Err(e) => e.to_string(),
-        };
-        SendMsg::new_group_reply_msg(message.group_id(), message.message_id(), return_message)
+            Err(e) => {
+                self.group_manager.after_handle_private_message(group_id, user_id);
+                SendMsg::new_group_reply_msg_at(group_id, user_id, e.to_string())
+            }
+        }
+
+        // let post_message = GPTPostMessage::new_basic_message(message.message().clone());
+        // let return_message = match self.post_gpt_request(post_message).await {
+        //     Ok(gpt_recv_msg) => {
+        //         let msg = gpt_recv_msg.get_return_msg().unwrap();
+        //         msg.into_contnet()
+        //     }
+        //     Err(e) => e.to_string(),
+        // };
+        // SendMsg::new_group_reply_msg(message.group_id(), message.message_id(), return_message)
     }
     async fn handler_private_message(&mut self, message: RecvMsg) -> SendMsg {
         let user_id = message.user_id();

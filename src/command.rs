@@ -2,7 +2,7 @@ use crate::role::BotRole;
 
 pub(super) static COMMAND_HELP_INFO: &str = r#"
     - `#role { name }` to set role
-        - assistant | taler | storyteller | default
+        - assistant | taler | storyteller | foodcritic | default
     - `#clean` to clean chat history
     - `#reset` to reset everything
     - `#help` for this menu

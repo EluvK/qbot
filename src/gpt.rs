@@ -65,6 +65,7 @@ impl Default for GPTPostMessage {
 }
 
 impl GPTPostMessage {
+    #[allow(dead_code)]
     pub fn new_basic_message(message: String) -> Self {
         GPTPostMessage {
             messages: vec![

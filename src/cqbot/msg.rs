@@ -34,16 +34,27 @@ impl SendMsg {
         }
     }
 
-    pub fn new_group_reply_msg(group_id: u64, message_id: i64, message: String) -> Self {
+    pub fn new_group_reply_msg_at(group_id: u64, user_id: u64, message: String) -> Self {
         SendMsg {
             action: SendMsgAction::SendGroupMsg,
             params: SendMsgParams {
                 user_id: None,
                 group_id: Some(group_id),
-                message: format!("[CQ:reply,id={}]{}", message_id, message),
+                message: format!("[CQ:at,qq={}]{}", user_id, message),
             },
         }
     }
+
+    // pub fn new_group_reply_msg(group_id: u64, message_id: i64, message: String) -> Self {
+    //     SendMsg {
+    //         action: SendMsgAction::SendGroupMsg,
+    //         params: SendMsgParams {
+    //             user_id: None,
+    //             group_id: Some(group_id),
+    //             message: format!("[CQ:reply,id={}]{}", message_id, message),
+    //         },
+    //     }
+    // }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -125,6 +136,7 @@ impl RecvMsg {
     pub fn user_id(&self) -> u64 {
         self.user_id
     }
+    #[allow(dead_code)]
     pub fn message_id(&self) -> i64 {
         self.message_id
     }
