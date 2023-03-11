@@ -23,7 +23,7 @@ pub struct SendMsg {
 }
 
 impl SendMsg {
-    pub fn new_private_msg(user_id: u64, message: String) -> Self {
+    fn new_private_msg(user_id: u64, message: String) -> Self {
         SendMsg {
             action: SendMsgAction::SendPrivateMsg,
             params: SendMsgParams {
@@ -34,7 +34,7 @@ impl SendMsg {
         }
     }
 
-    pub fn new_group_reply_msg_at(group_id: u64, user_id: u64, message: String) -> Self {
+    fn new_group_reply_msg_at(group_id: u64, user_id: u64, message: String) -> Self {
         SendMsg {
             action: SendMsgAction::SendGroupMsg,
             params: SendMsgParams {
@@ -45,16 +45,12 @@ impl SendMsg {
         }
     }
 
-    // pub fn new_group_reply_msg(group_id: u64, message_id: i64, message: String) -> Self {
-    //     SendMsg {
-    //         action: SendMsgAction::SendGroupMsg,
-    //         params: SendMsgParams {
-    //             user_id: None,
-    //             group_id: Some(group_id),
-    //             message: format!("[CQ:reply,id={}]{}", message_id, message),
-    //         },
-    //     }
-    // }
+    pub fn new_message(group_id: Option<u64>, user_id: u64, message: String) -> Self {
+        match group_id {
+            Some(group_id) => Self::new_group_reply_msg_at(group_id, user_id, message),
+            None => Self::new_private_msg(user_id, message),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

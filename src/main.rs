@@ -1,37 +1,33 @@
 mod command;
+mod config;
 mod cqbot;
 mod gpt;
 mod private_manager;
 mod role;
 
+use config::Config;
 use cqbot::Bot;
 
-use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// cqhttp websocket address, default value is `ws://localhost:8080/ws`
-    #[arg(short, long)]
-    websocket: Option<String>,
-
-    /// use proxy to access openai api, None to not use proxy
-    #[arg(long)]
-    proxy: Option<String>,
-
-    /// openai api key, start with `sk-`
-    api_key: String,
-
-    /// bot qq, to determined if @ bot
-    qq: u64,
-}
+use std::{fs::File, io::Read, path::Path};
 
 #[tokio::main]
 async fn main() {
-    let args = Args::parse();
-    let cqhttp_ws = args.websocket.unwrap_or("ws://localhost:8080/ws".into());
+    let path = Path::new("config.json");
 
-    let mut bot = Bot::new(&cqhttp_ws, args.proxy, args.api_key, args.qq).await;
+    if !path.exists() {
+        let mut _file = File::create(path).expect("Failed to create config file");
+        std::fs::write(path, r#"{"websocket": "ws://localhost:8080/ws", "proxy": "", "api_key": "sk-xxx", "bot_qq": 123, "root_qq": 456}"#).expect("Failed to create config file");
+        println!("Config file created, you should edit it and run again");
+        return;
+    }
+
+    let mut file = File::open("config.json").expect("Failed to open config file");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).expect("Failed to read file content");
+
+    let config = serde_json::from_str::<Config>(&contents).expect("Check config file content");
+
+    let mut bot = Bot::new(config).await;
 
     bot.loop_read().await;
 }

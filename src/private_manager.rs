@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
-use crate::{command, gpt::GPTMessages, role::BotRole};
+use crate::{command, config::Config, gpt::GPTMessages, role::BotRole};
 
 use self::error::PrivateManagerError;
 
@@ -53,6 +53,10 @@ impl ChatContext {
 
     fn query_too_often(&mut self, interval: u64, ts: u64) -> (bool, u64) {
         if self.last_ts + interval <= ts {
+            if self.last_ts != 0 && self.last_ts + 60 * 60 * 2 <= ts {
+                // 2 hours auto reset memory
+                self.reset();
+            }
             self.last_ts = ts;
             (false, 0)
         } else {
@@ -62,29 +66,29 @@ impl ChatContext {
 }
 
 /// manager each private friends conversations
-pub struct PrivateManager {
+struct PrivateManager {
     contexts: HashMap<u64, ChatContext>,
     interval: u64,
 }
 
 impl PrivateManager {
-    pub fn new(interval: u64) -> Self {
+    fn new(interval: u64) -> Self {
         PrivateManager {
             contexts: HashMap::new(),
             interval,
         }
     }
 
-    pub fn get_histories(&self, user_id: u64) -> Option<&Vec<GPTMessages>> {
+    fn get_histories(&self, user_id: u64) -> Option<&Vec<GPTMessages>> {
         self.contexts.get(&user_id).map(|c| &c.histories)
     }
 
-    pub fn push_history(&mut self, user_id: u64, msg: GPTMessages) {
+    fn push_history(&mut self, user_id: u64, msg: GPTMessages) {
         let chat_context = self.contexts.get_mut(&user_id).unwrap();
         chat_context.histories.push(msg);
     }
 
-    pub fn pop_history(&mut self, user_id: u64) {
+    fn pop_history(&mut self, user_id: u64) {
         let chat_context = self.contexts.get_mut(&user_id).unwrap();
         chat_context.histories.pop();
     }
@@ -92,7 +96,7 @@ impl PrivateManager {
     /// when return error, return to user immediately.
     /// when ok, continue generate chatgpt answer.
     /// Noted: instructions should be the Err(), will not call chatgpt.
-    pub fn pre_handle_private_message(
+    fn pre_handle_private_message(
         &mut self,
         user_id: u64,
         ts: u64,
@@ -140,52 +144,60 @@ impl PrivateManager {
         }
     }
 
-    pub fn after_handle_private_message(&mut self, user_id: u64) {
+    fn after_handle_private_message(&mut self, user_id: u64) {
         let chat_context = self.contexts.get_mut(&user_id).unwrap();
         chat_context.wait_gpt_reply = false;
     }
 }
 
-pub struct GroupManager {
-    contexts: HashMap<u64, PrivateManager>,
+pub struct ChatManager {
+    group_contexts: HashMap<u64, PrivateManager>,
+    private_context: PrivateManager,
+    config: Rc<Config>,
 }
 
-impl GroupManager {
-    pub fn new() -> Self {
+impl ChatManager {
+    pub fn new(config: Rc<Config>) -> Self {
         Self {
-            contexts: HashMap::new(),
+            group_contexts: HashMap::new(),
+            private_context: PrivateManager::new(1),
+            config,
         }
+    }
+
+    fn choose_pm(&mut self, group_id: Option<u64>) -> &mut PrivateManager {
+        group_id.map_or(&mut self.private_context, |group_id| {
+            self.group_contexts
+                .entry(group_id)
+                .or_insert_with(|| PrivateManager::new(10));
+            self.group_contexts.get_mut(&group_id).unwrap()
+        })
     }
 
     pub fn pre_handle_private_message(
         &mut self,
-        group_id: u64,
+        group_id: Option<u64>,
         user_id: u64,
         ts: u64,
         message: String,
     ) -> Result<(), PrivateManagerError> {
-        self.contexts.entry(group_id).or_insert_with(|| PrivateManager::new(10));
-        let group_private_manager = self.contexts.get_mut(&group_id).unwrap();
-        group_private_manager.pre_handle_private_message(user_id, ts, message)
+        self.choose_pm(group_id)
+            .pre_handle_private_message(user_id, ts, message)
+    }
+    pub fn after_handle_private_message(&mut self, group_id: Option<u64>, user_id: u64) {
+        self.choose_pm(group_id).after_handle_private_message(user_id)
     }
 
-    pub fn get_histories(&mut self, group_id: u64, user_id: u64) -> Option<&Vec<GPTMessages>> {
-        self.contexts.get_mut(&group_id).unwrap().get_histories(user_id)
+    pub fn get_histories(&mut self, group_id: Option<u64>, user_id: u64) -> Option<&Vec<GPTMessages>> {
+        self.choose_pm(group_id).get_histories(user_id)
     }
 
-    pub fn push_history(&mut self, group_id: u64, user_id: u64, msg: GPTMessages) {
-        self.contexts.get_mut(&group_id).unwrap().push_history(user_id, msg)
+    pub fn push_history(&mut self, group_id: Option<u64>, user_id: u64, msg: GPTMessages) {
+        self.choose_pm(group_id).push_history(user_id, msg)
     }
 
-    pub fn pop_history(&mut self, group_id: u64, user_id: u64) {
-        self.contexts.get_mut(&group_id).unwrap().pop_history(user_id)
-    }
-
-    pub fn after_handle_private_message(&mut self, group_id: u64, user_id: u64) {
-        self.contexts
-            .get_mut(&group_id)
-            .unwrap()
-            .after_handle_private_message(user_id)
+    pub fn pop_history(&mut self, group_id: Option<u64>, user_id: u64) {
+        self.choose_pm(group_id).pop_history(user_id)
     }
 }
 

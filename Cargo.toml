@@ -17,7 +17,6 @@ regex = "1.7.1"
 lazy_static = "1.4.0"
 thiserror = "1.0.39"
 reqwest = { version = "0.11.14", features = ["socks"] }
-clap = { version = "4.1.8", features = ["derive"] }
 
 [dev-dependencies]
 tokio-test = "0.4.2"
