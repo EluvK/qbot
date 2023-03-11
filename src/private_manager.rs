@@ -9,6 +9,7 @@ struct ChatContext {
     _user_id: u64,
     wait_gpt_reply: bool, // to make sure one question at a time, to make it linear
     histories: Vec<GPTMessages>,
+    last_ts: u64,
     _max_depth: usize,
 }
 
@@ -21,6 +22,7 @@ impl ChatContext {
             _user_id: user_id,
             wait_gpt_reply: false,
             histories: Vec::new(),
+            last_ts: 0,
             _max_depth: DEFAULT_MAX_DEPTH,
         };
         new_context.set_default_role();
@@ -48,17 +50,28 @@ impl ChatContext {
             .iter()
             .for_each(|m| self.histories.push(m.clone()));
     }
+
+    fn query_too_often(&mut self, interval: u64, ts: u64) -> (bool, u64) {
+        if self.last_ts + interval <= ts {
+            self.last_ts = ts;
+            (false, 0)
+        } else {
+            (true, self.last_ts + interval - ts)
+        }
+    }
 }
 
 /// manager each private friends conversations
 pub struct PrivateManager {
     contexts: HashMap<u64, ChatContext>,
+    interval: u64,
 }
 
 impl PrivateManager {
-    pub fn new() -> Self {
+    pub fn new(interval: u64) -> Self {
         PrivateManager {
             contexts: HashMap::new(),
+            interval,
         }
     }
 
@@ -79,7 +92,12 @@ impl PrivateManager {
     /// when return error, return to user immediately.
     /// when ok, continue generate chatgpt answer.
     /// Noted: instructions should be the Err(), will not call chatgpt.
-    pub fn pre_handle_private_message(&mut self, user_id: u64, message: String) -> Result<(), PrivateManagerError> {
+    pub fn pre_handle_private_message(
+        &mut self,
+        user_id: u64,
+        ts: u64,
+        message: String,
+    ) -> Result<(), PrivateManagerError> {
         self.contexts
             .entry(user_id)
             .or_insert_with(|| ChatContext::new_chat_context(user_id));
@@ -111,6 +129,10 @@ impl PrivateManager {
             if chat_context.wait_gpt_reply {
                 return Err(PrivateManagerError::OnceMessageATime);
             }
+            let (f, _t) = chat_context.query_too_often(self.interval, ts);
+            if f {
+                return Err(PrivateManagerError::QueryTooOften(_t));
+            }
             chat_context.histories.push(GPTMessages::new_user_message(message));
             chat_context.wait_gpt_reply = true;
 
@@ -139,11 +161,12 @@ impl GroupManager {
         &mut self,
         group_id: u64,
         user_id: u64,
+        ts: u64,
         message: String,
     ) -> Result<(), PrivateManagerError> {
-        self.contexts.entry(group_id).or_insert_with(|| PrivateManager::new());
+        self.contexts.entry(group_id).or_insert_with(|| PrivateManager::new(10));
         let group_private_manager = self.contexts.get_mut(&group_id).unwrap();
-        group_private_manager.pre_handle_private_message(user_id, message)
+        group_private_manager.pre_handle_private_message(user_id, ts, message)
     }
 
     pub fn get_histories(&mut self, group_id: u64, user_id: u64) -> Option<&Vec<GPTMessages>> {
@@ -173,6 +196,9 @@ mod error {
     pub enum PrivateManagerError {
         #[error("Error: one message a time please.")]
         OnceMessageATime,
+
+        #[error("Error: query too frequently. Wait {0} second please")]
+        QueryTooOften(u64),
 
         #[error("Error: invalid command")]
         InvalidCommand,

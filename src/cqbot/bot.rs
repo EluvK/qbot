@@ -27,7 +27,7 @@ impl Bot {
             proxy_addr: proxy,
             api_key,
             web_socket_stream: Box::new(wss),
-            private_manager: PrivateManager::new(),
+            private_manager: PrivateManager::new(0),
             group_manager: GroupManager::new(),
         }
     }
@@ -76,9 +76,10 @@ impl Bot {
     async fn handler_group_message(&mut self, message: RecvMsg) -> SendMsg {
         let group_id = message.group_id();
         let user_id = message.user_id();
+        let ts = message.message_ts();
         let gpm = self
             .group_manager
-            .pre_handle_private_message(group_id, user_id, message.message().clone());
+            .pre_handle_private_message(group_id, user_id, ts, message.message().clone());
 
         match gpm {
             Ok(_) => {
@@ -119,9 +120,9 @@ impl Bot {
     }
     async fn handler_private_message(&mut self, message: RecvMsg) -> SendMsg {
         let user_id = message.user_id();
-        let pm = self
-            .private_manager
-            .pre_handle_private_message(user_id, message.message().clone());
+        let pm =
+            self.private_manager
+                .pre_handle_private_message(user_id, message.message_ts(), message.message().clone());
         match pm {
             Ok(_) => {
                 // legal request

@@ -144,6 +144,9 @@ impl RecvMsg {
     pub fn message(&self) -> &String {
         &self.message
     }
+    pub fn message_ts(&self) -> u64 {
+        self.time
+    }
 }
 
 #[cfg(test)]
