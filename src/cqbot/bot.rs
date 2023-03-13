@@ -112,14 +112,13 @@ impl Bot {
         let body = serde_json::to_string(&post_message).unwrap();
         println!("body:{}", body);
 
-        let c = self
-            .config
-            .proxy_addr()
-            .clone()
-            .map_or(Ok(reqwest::Client::new()), |addr| {
-                let proxy = reqwest::Proxy::https(addr.as_str())?;
-                reqwest::Client::builder().proxy(proxy).build()
-            })?;
+        let c = match self.config.proxy_addr() {
+            Some(addr) if !addr.is_empty() => {
+                let proxy = reqwest::Proxy::https(addr)?;
+                reqwest::Client::builder().proxy(proxy).build()?
+            }
+            _ => reqwest::Client::new(),
+        };
 
         let resp_text = c
             .post(OPENAIAPIURL)
