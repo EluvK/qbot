@@ -2,6 +2,7 @@ mod command;
 mod config;
 mod cqbot;
 mod gpt;
+mod history;
 mod private_manager;
 mod role;
 

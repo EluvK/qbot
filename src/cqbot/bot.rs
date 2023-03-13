@@ -76,10 +76,10 @@ impl Bot {
         let user_id = message.user_id();
         let ts = message.message_ts();
 
-        let pm = self
+        let pm_result = self
             .chat_manager
             .pre_handle_private_message(group_id, user_id, ts, message.message().clone());
-        match pm {
+        match pm_result {
             Ok(true) => {
                 // legal request
                 let post_message = GPTPostMessage::new_with_history(

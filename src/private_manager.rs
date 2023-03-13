@@ -3,7 +3,13 @@ use std::{
     rc::Rc,
 };
 
-use crate::{command, config::Config, gpt::GPTMessages, role::BotRole};
+use crate::{
+    command,
+    config::Config,
+    gpt::GPTMessages,
+    history::{BotHistory, BotHistoryOp},
+    role::BotRole,
+};
 
 use self::error::PrivateManagerError;
 
@@ -83,6 +89,13 @@ impl PrivateManager {
             deny_list: HashSet::new(),
         }
     }
+    fn new_with_history(interval: u64, deny_list: HashSet<u64>) -> Self {
+        PrivateManager {
+            contexts: HashMap::new(),
+            interval,
+            deny_list,
+        }
+    }
 
     fn deny(&mut self, user_id: u64) {
         self.deny_list.insert(user_id);
@@ -90,6 +103,10 @@ impl PrivateManager {
 
     fn allow(&mut self, user_id: u64) {
         self.deny_list.remove(&user_id);
+    }
+
+    fn is_deny(&self, qq: u64) -> bool {
+        self.deny_list.contains(&qq)
     }
 
     fn reset(&mut self, user_id: Option<u64>) {
@@ -102,10 +119,6 @@ impl PrivateManager {
                 self.contexts.iter_mut().for_each(|(_, c)| c.reset());
             }
         }
-    }
-
-    fn is_deny(&self, qq: u64) -> bool {
-        self.deny_list.contains(&qq)
     }
 
     fn get_histories(&self, user_id: u64) -> Option<&Vec<GPTMessages>> {
@@ -192,14 +205,23 @@ pub struct ChatManager {
     group_contexts: HashMap<u64, PrivateManager>,
     private_context: PrivateManager,
     config: Rc<Config>,
+    history: BotHistory,
 }
 
 impl ChatManager {
     pub fn new(config: Rc<Config>) -> Self {
+        let history = BotHistory::load();
+        let group_historys = history.load_group_deny_history();
         Self {
-            group_contexts: HashMap::new(),
+            group_contexts: group_historys
+                .into_iter()
+                .map(|(group_id, group_deny_history)| {
+                    (group_id, PrivateManager::new_with_history(10, group_deny_history))
+                })
+                .collect(),
             private_context: PrivateManager::new(1),
             config,
+            history,
         }
     }
 
@@ -228,10 +250,12 @@ impl ChatManager {
                 command::RootOpcode::Invalid => PrivateManagerError::InvalidCommand,
                 command::RootOpcode::Deny(qq) => {
                     self.choose_pm(group_id).deny(qq);
+                    self.history.sync_op(group_id, BotHistoryOp::AddDeny(qq));
                     PrivateManagerError::CommandSuccess(format!("Deny {}", qq))
                 }
                 command::RootOpcode::Allow(qq) => {
                     self.choose_pm(group_id).allow(qq);
+                    self.history.sync_op(group_id, BotHistoryOp::RemoveDeny(qq));
                     PrivateManagerError::CommandSuccess(format!("Allow {}", qq))
                 }
                 command::RootOpcode::Reset(qq) => {
