@@ -17,8 +17,8 @@ pub enum BotRole {
 
 impl BotRole {
     pub fn new_from_str(ins: &str) -> Self {
-        match ins {
-            "assistant" | "Assistant" | "default" | "Default" => Self::Assistant,
+        match ins.to_ascii_lowercase().as_str() {
+            "assistant" | "default" => Self::Assistant,
             "clippy" => Self::Clippy,
             "taler" => Self::Taler,
             "storyteller" => Self::StoryTeller,

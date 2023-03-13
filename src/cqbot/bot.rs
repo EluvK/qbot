@@ -5,11 +5,14 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 use crate::{
+    command::GREETING_MESSAGE,
     config::Config,
-    cqbot::msg::{MessageType, RecvMsg, SendMsg},
+    cqbot::msg::{MessageType, PostMessageMsg, PostMessageType, PostMsg, SendMsg},
     gpt::{GPTPostMessage, GPTRecvMessage},
     private_manager::ChatManager,
 };
+
+use super::msg::{NoticeType, PostNoticeMsg, PostRequestMsg};
 
 pub struct Bot {
     web_socket_stream: Box<WebSocketStream<MaybeTlsStream<TcpStream>>>,
@@ -49,13 +52,27 @@ impl Bot {
     async fn handle_cqhttp_message(&mut self, message: Message) -> Option<SendMsg> {
         if let Message::Text(text) = message {
             // println!("Handle Text:{}", &text);
-            let msg = serde_json::from_str::<RecvMsg>(&text).ok()?;
-            let (is_at, msg) = msg.pre_parse_msg(self.config.bot_qq());
-            println!("is_at:{:?}, RecvMessage:{:?}", is_at, &msg);
-            if &MessageType::Group == msg.message_type() && !is_at {
-                None
-            } else {
-                self.handle_message(msg).await
+            let post_msg = serde_json::from_str::<PostMsg>(&text).ok()?;
+            match post_msg.post_type {
+                PostMessageType::Message => {
+                    let msg = serde_json::from_str::<PostMessageMsg>(&text).ok()?;
+                    let (is_at, msg) = msg.pre_parse_msg(self.config.bot_qq());
+                    println!("[Message] is_at:{:?}, RecvMessage:{:?}", is_at, &msg);
+                    if &MessageType::Group == msg.message_type() && !is_at {
+                        None
+                    } else {
+                        self.handle_message(msg).await
+                    }
+                }
+                PostMessageType::MetaEvent => None, // don't care for now
+                PostMessageType::Request => {
+                    let req = serde_json::from_str::<PostRequestMsg>(&text).ok()?;
+                    self.handle_request(req)
+                }
+                PostMessageType::Notice => {
+                    let notice = serde_json::from_str::<PostNoticeMsg>(&text).ok()?;
+                    self.handle_notice(notice)
+                }
             }
         } else {
             None
@@ -67,7 +84,8 @@ impl Bot {
         self.web_socket_stream.send(reply).await.expect("Send_fail");
     }
 
-    async fn handle_message(&mut self, message: RecvMsg) -> Option<SendMsg> {
+    /// for PostMessageType::Message
+    async fn handle_message(&mut self, message: PostMessageMsg) -> Option<SendMsg> {
         let group_id = if message.message_type() == &MessageType::Group {
             Some(message.group_id())
         } else {
@@ -147,6 +165,22 @@ impl Bot {
         })?;
 
         Ok(gpt_recv_msg)
+    }
+
+    /// for PostMessageType::Request
+    fn handle_request(&mut self, req: PostRequestMsg) -> Option<SendMsg> {
+        Some(SendMsg::new_message(
+            None,
+            self.config.root_qq(),
+            format!("Bot receive request: {}", req),
+        ))
+    }
+    /// for PostMessageType::Notice
+    fn handle_notice(&mut self, notice: PostNoticeMsg) -> Option<SendMsg> {
+        match notice.notice_type {
+            NoticeType::FriendAdd => Some(SendMsg::new_message(None, notice.user_id, GREETING_MESSAGE.into())),
+            _ => None,
+        }
     }
 }
 

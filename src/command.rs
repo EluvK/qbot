@@ -8,6 +8,8 @@ pub(super) static COMMAND_HELP_INFO: &str = r#"
     - `#help` for this menu
     "#;
 
+pub(super) static GREETING_MESSAGE: &str = "Hi! I'm a chatbot developed by EluvK and open-sourced at https://github.com/EluvK/qbot. Type `#help` to get the list of commands.";
+
 pub(super) enum Opcode {
     Invalid,
     Role(BotRole),
