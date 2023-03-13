@@ -1,4 +1,7 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use crate::{command, config::Config, gpt::GPTMessages, role::BotRole};
 
@@ -65,10 +68,11 @@ impl ChatContext {
     }
 }
 
-/// manager each private friends conversations
+/// A PrivateManager handle one group / all private friend's conversations.
 struct PrivateManager {
     contexts: HashMap<u64, ChatContext>,
     interval: u64,
+    deny_list: HashSet<u64>,
 }
 
 impl PrivateManager {
@@ -76,7 +80,32 @@ impl PrivateManager {
         PrivateManager {
             contexts: HashMap::new(),
             interval,
+            deny_list: HashSet::new(),
         }
+    }
+
+    fn deny(&mut self, user_id: u64) {
+        self.deny_list.insert(user_id);
+    }
+
+    fn allow(&mut self, user_id: u64) {
+        self.deny_list.remove(&user_id);
+    }
+
+    fn reset(&mut self, user_id: Option<u64>) {
+        match user_id {
+            Some(user_id) => {
+                self.contexts.get_mut(&user_id).unwrap().reset();
+            }
+            None => {
+                // reset all
+                self.contexts.iter_mut().for_each(|(_, c)| c.reset());
+            }
+        }
+    }
+
+    fn is_deny(&self, qq: u64) -> bool {
+        self.deny_list.contains(&qq)
     }
 
     fn get_histories(&self, user_id: u64) -> Option<&Vec<GPTMessages>> {
@@ -93,15 +122,24 @@ impl PrivateManager {
         chat_context.histories.pop();
     }
 
-    /// when return error, return to user immediately.
-    /// when ok, continue generate chatgpt answer.
+    fn new_empty_context(&mut self, user_id: u64) {
+        self.contexts
+            .entry(user_id)
+            .or_insert_with(|| ChatContext::new_chat_context(user_id));
+    }
+
+    /// when return Err(error), return to user immediately.
+    /// when Ok(true), continue generate chatgpt answer.
     /// Noted: instructions should be the Err(), will not call chatgpt.
     fn pre_handle_private_message(
         &mut self,
         user_id: u64,
         ts: u64,
         message: String,
-    ) -> Result<(), PrivateManagerError> {
+    ) -> Result<bool, PrivateManagerError> {
+        if self.is_deny(user_id) {
+            return Ok(false);
+        }
         self.contexts
             .entry(user_id)
             .or_insert_with(|| ChatContext::new_chat_context(user_id));
@@ -140,7 +178,7 @@ impl PrivateManager {
             chat_context.histories.push(GPTMessages::new_user_message(message));
             chat_context.wait_gpt_reply = true;
 
-            Ok(())
+            Ok(true)
         }
     }
 
@@ -180,7 +218,33 @@ impl ChatManager {
         user_id: u64,
         ts: u64,
         message: String,
-    ) -> Result<(), PrivateManagerError> {
+    ) -> Result<bool, PrivateManagerError> {
+        self.choose_pm(group_id).new_empty_context(user_id); // just incase use sudo without any context.
+        if let Some(root_instructions) = message.strip_prefix("#sudo") {
+            if user_id != self.config.root_qq() {
+                return Err(PrivateManagerError::PermissionDeny);
+            }
+            let err = match command::parse_root_instructions(root_instructions) {
+                command::RootOpcode::Invalid => PrivateManagerError::InvalidCommand,
+                command::RootOpcode::Deny(qq) => {
+                    self.choose_pm(group_id).deny(qq);
+                    PrivateManagerError::CommandSuccess(format!("Deny {}", qq))
+                }
+                command::RootOpcode::Allow(qq) => {
+                    self.choose_pm(group_id).allow(qq);
+                    PrivateManagerError::CommandSuccess(format!("Allow {}", qq))
+                }
+                command::RootOpcode::Reset(qq) => {
+                    self.choose_pm(group_id).reset(Some(qq));
+                    PrivateManagerError::CommandSuccess(format!("Reset {}", qq))
+                }
+                command::RootOpcode::ResetAll => {
+                    self.choose_pm(group_id).reset(None);
+                    PrivateManagerError::CommandSuccess("Reset All".into())
+                }
+            };
+            return Err(err);
+        }
         self.choose_pm(group_id)
             .pre_handle_private_message(user_id, ts, message)
     }
@@ -217,5 +281,8 @@ mod error {
 
         #[error("CommandSuccess: {0}")]
         CommandSuccess(String),
+
+        #[error("Permission deny")]
+        PermissionDeny,
     }
 }

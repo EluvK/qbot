@@ -55,7 +55,7 @@ impl Bot {
             if &MessageType::Group == msg.message_type() && !is_at {
                 None
             } else {
-                Some(self.handle_message(msg).await)
+                self.handle_message(msg).await
             }
         } else {
             None
@@ -67,7 +67,7 @@ impl Bot {
         self.web_socket_stream.send(reply).await.expect("Send_fail");
     }
 
-    async fn handle_message(&mut self, message: RecvMsg) -> SendMsg {
+    async fn handle_message(&mut self, message: RecvMsg) -> Option<SendMsg> {
         let group_id = if message.message_type() == &MessageType::Group {
             Some(message.group_id())
         } else {
@@ -80,7 +80,7 @@ impl Bot {
             .chat_manager
             .pre_handle_private_message(group_id, user_id, ts, message.message().clone());
         match pm {
-            Ok(_) => {
+            Ok(true) => {
                 // legal request
                 let post_message = GPTPostMessage::new_with_history(
                     self.chat_manager.get_histories(group_id, user_id).unwrap().clone(),
@@ -98,12 +98,12 @@ impl Bot {
                     }
                 };
                 self.chat_manager.after_handle_private_message(group_id, user_id);
-
-                SendMsg::new_message(group_id, user_id, return_message)
+                Some(SendMsg::new_message(group_id, user_id, return_message))
             }
+            Ok(false) => None, // illegal request
             Err(e) => {
                 self.chat_manager.after_handle_private_message(group_id, user_id);
-                SendMsg::new_message(group_id, user_id, e.to_string())
+                Some(SendMsg::new_message(group_id, user_id, e.to_string()))
             }
         }
     }

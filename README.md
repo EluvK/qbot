@@ -19,34 +19,30 @@ Rust 实现，抽象了 cqhttp 的收发消息、openai ai 的消息对象，具
 1. 下载 [cqhttp](https://github.com/Mrs4s/go-cqhttp/releases)
 2. 下载 [qbot](https://github.com/EluvK/qbot/releases)
 3. 开启 cqhttp （使用 2 local websocket，更多的还是看cqhttp官方吧）
-4. 开启 qbot （--help 所见即所得）
+4. 开启 qbot，生成配置文件
+5. 编辑配置文件 config.json ，再次开启 qbot : `nohup ./qbot &`
 
-## 使用命令
+## 配置文件
 
-``` BASH
-$./qbot --help
-Usage: qbot [OPTIONS] <API_KEY> <QQ>
-
-Arguments:
-  <API_KEY>  openai api key, start with `sk-`
-  <QQ>       bot qq, to determined if @ bot
-
-Options:
-  -w, --websocket <WEBSOCKET>  cqhttp websocket address, default value is `ws://localhost:8080/ws`
-      --proxy <PROXY>          use proxy to access openai api, None to not use proxy
-  -h, --help                   Print help
-  -V, --version                Print version
-
+``` JSON
+{
+    "websocket": "ws://localhost:8080/ws",
+    "proxy": "",
+    "api_key": "sk-xxx",
+    "bot_qq": 123,
+    "root_qq": 456
+}
 ```
 
 ## 功能
 
 目前支持:
 
-- [x] 单条消息回复群聊里的 @ 问题, 连续上下文记录
-- [x] 私聊消息，连续上下文记录
+- [x] 单条消息回复群聊里的 @ 问题, 连续上下文记录 ✔
+- [x] 私聊消息，连续上下文记录 ✔
 - [x] # 机器人指令，更换prompt内容、清理上下文记录等。
-
+- [x] #sudo 机器人指令，黑名单，强制清理上下文记录等。
+- [ ] 计算语句tokon usage，并自动清理
 
 ## 参考文档
 

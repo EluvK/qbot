@@ -22,18 +22,48 @@ pub(super) fn parse_instructions(ins: &str) -> Opcode {
         match op {
             "clean" | "Clean" => Opcode::Clean,
             "reset" | "Reset" => Opcode::Reset,
-            "role" | "Role" => {
-                if let Some(ins) = iter.next() {
-                    Opcode::Role(BotRole::new_from_str(ins))
-                } else {
-                    // default is Assistant
-                    Opcode::Role(BotRole::Assistant)
-                }
-            }
+            "role" | "Role" => Opcode::Role(iter.next().map_or(BotRole::Assistant, BotRole::new_from_str)),
             "help" | "Help" => Opcode::Help,
             _ => Opcode::Invalid,
         }
     } else {
         Opcode::Invalid
     }
+}
+
+pub(super) enum RootOpcode {
+    Invalid,
+    Deny(u64), // group ignore a user permanently
+    Allow(u64),
+    Reset(u64), // root reset someone's contexts
+    ResetAll,   // root reset this group context all
+}
+
+pub(super) fn parse_root_instructions(ins: &str) -> RootOpcode {
+    let mut iter = ins.split_whitespace();
+    if let Some(root_op) = iter.next() {
+        match (root_op, iter.next()) {
+            ("deny" | "Deny", Some(ins)) => {
+                if let Ok(qq_number) = ins.parse::<u64>() {
+                    return RootOpcode::Deny(qq_number);
+                }
+            }
+            ("allow" | "Allow", Some(ins)) => {
+                if let Ok(qq_number) = ins.parse::<u64>() {
+                    return RootOpcode::Allow(qq_number);
+                }
+            }
+            ("reset" | "Reset", None) => {
+                return RootOpcode::ResetAll;
+            }
+            ("reset" | "Reset", Some(ins)) => {
+                if let Ok(qq_number) = ins.parse::<u64>() {
+                    return RootOpcode::Reset(qq_number);
+                }
+            }
+
+            _ => {}
+        }
+    }
+    RootOpcode::Invalid
 }
