@@ -1,14 +1,12 @@
 # qbot
 
-QQChatBot with GPT api 
+QQChatBot with ChatGPT `gpt-3.5-turbo` api 
 
-用在 QQ 的机器人，咱就不写英文了，累。
-
-Rust 实现，抽象了 cqhttp 的收发消息、openai ai 的消息对象，具有私聊好友管理功能、预设机器人角色、指令等功能。
+Rust 实现，抽象了 cqhttp 的收发消息 [msg](./src/cqbot/msg/mod.rs)、openai ai 的消息对象，具有一定管理权限、预设机器人角色、机器人指令等功能。
 
 原理上是接受 [cqhttp](https://github.com/Mrs4s/go-cqhttp) 的 local websocket 消息，处理其中的消息，构造出调用 openai api 的调用，得到返回结果后发送回答。
 
-新增了支持通过socks代理调用openai的api，主要方便直接在国内的服务器上挂QQ bot
+支持通过socks代理调用openai的api，主要方便直接在国内的服务器上挂QQ bot
 
 欢迎 点 Star⭐ , Fork 二次修改 ，提 Issues，提 PR ~ 
 
@@ -19,7 +17,7 @@ Rust 实现，抽象了 cqhttp 的收发消息、openai ai 的消息对象，具
 1. 下载 [cqhttp](https://github.com/Mrs4s/go-cqhttp/releases)
 2. 下载 [qbot](https://github.com/EluvK/qbot/releases)
 3. 开启 cqhttp （使用 2 local websocket，更多的还是看cqhttp官方吧）
-4. 开启 qbot，生成配置文件
+4. 开启 qbot，生成配置文件 `./qbot`
 5. 编辑配置文件 config.json ，再次开启 qbot : `nohup ./qbot &`
 
 ## 配置文件
