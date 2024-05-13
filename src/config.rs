@@ -1,39 +1,33 @@
-use serde::{Deserialize, Serialize};
+use anyhow::Context;
+use cqhttp_bot_frame::bot::BotConfig;
+use std::path::Path;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
-    websocket: String,
-    proxy: Option<String>,
-    api_key: String,
-    bot_qq: u64,
-    root_qq: u64,
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct ApiKey {
+    #[serde(default)]
+    pub open_ai: String,
+    #[serde(default)]
+    pub deep_seek: String,
 }
 
-impl Config {
-    #[cfg(test)]
-    pub fn test_new() -> Self {
-        Config {
-            websocket: "ws://localhost:8080/ws".into(),
-            proxy: Some("socks5h://127.0.0.1:1080".into()),
-            api_key: "sk-xx".into(),
-            bot_qq: 222,
-            root_qq: 111,
-        }
-    }
+#[derive(Debug, Deserialize)]
+pub struct QBotConfig {
+    pub cq_bot: BotConfig,
+    pub proxy: Option<String>,
+    pub api_key: ApiKey,
+}
 
-    pub fn url(&self) -> &str {
-        &self.websocket
-    }
-    pub fn proxy_addr(&self) -> &Option<String> {
-        &self.proxy
-    }
-    pub fn api_key(&self) -> &str {
-        &self.api_key
-    }
-    pub fn bot_qq(&self) -> u64 {
-        self.bot_qq
-    }
-    pub fn root_qq(&self) -> u64 {
-        self.root_qq
-    }
+pub fn load_from_file(path: &Path) -> anyhow::Result<QBotConfig> {
+    config::Config::builder()
+        .add_source(config::File::from(path))
+        .build()
+        .with_context(|| format!("failed to load configuration from {}", path.display()))?
+        .try_deserialize()
+        .context("failed to deserialize configuration")
+}
+
+pub fn default_config() -> String {
+    r#""#.into()
 }

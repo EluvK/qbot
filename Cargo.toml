@@ -1,22 +1,32 @@
 [package]
 name = "qbot"
-version = "0.1.4"
+version = "0.2.0-beta"
 edition = "2021"
 authors = ["eluvk.dev@gmail.com"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio-tungstenite = "0.18.0"
-tokio = { version = "1.26.0", features = ["full"] }
-url = "2.3.1"
-futures-util = "0.3.26"
-serde_json = "1.0.94"
+# tokio-tungstenite = "0.18.0"
+anyhow = "1.0.83"
+async-trait = "0.1.80"
+bson = "2.10.0"
+clap = { version = "4.5.4", features = ["derive"] }
+config = "0.14.0"
+cqhttp-bot-frame = { git = "https://github.com/EluvK/cqhttp-bot-frame.git", branch = "master" }
+# futures-util = "0.3.26"
+# lazy_static = "1.4.0"
+# regex = "1.7.1"
+reqwest = { version = "0.12.4", features = ["socks"] }
 serde = { version = "1.0.154", features = ["derive"] }
-regex = "1.7.1"
-lazy_static = "1.4.0"
-thiserror = "1.0.39"
-reqwest = { version = "0.11.14", features = ["socks"] }
+serde_json = "1.0.94"
+# thiserror = "1.0.39"
+# time = "0.3.36"
+tokio = { version = "1.26.0", features = ["full"] }
+tracing = "0.1.40"
+tracing-appender = "0.2.3"
+tracing-subscriber = { version = "0.3.18", features = ["local-time"] }
+# url = "2.3.1"
 
 [dev-dependencies]
 tokio-test = "0.4.2"
