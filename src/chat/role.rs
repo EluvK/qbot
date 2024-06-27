@@ -1,5 +1,6 @@
-use crate::chat::message::{Message, MessageRole};
 use serde::{Deserialize, Serialize};
+
+use crate::chat::message::{Message, MessageRole};
 
 #[derive(Clone, Deserialize, Serialize)]
 pub enum Role {

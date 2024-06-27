@@ -1,7 +1,0 @@
-{
-    "websocket": "ws://localhost:8080/ws",
-    "proxy": "",
-    "api_key": "sk-xxx",
-    "bot_qq": 123,
-    "root_qq": 456
-}

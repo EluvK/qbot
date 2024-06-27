@@ -1,22 +1,20 @@
-use anyhow::Context;
-use cqhttp_bot_frame::bot::BotConfig;
 use std::path::Path;
 
+use anyhow::Context;
+use cqhttp_bot_frame::bot::BotConfig;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct ApiKey {
-    #[serde(default)]
-    pub open_ai: String,
-    #[serde(default)]
-    pub deep_seek: String,
+pub enum AuthToken {
+    OpenAi(String),
+    DeepSeek(String),
 }
 
 #[derive(Debug, Deserialize)]
 pub struct QBotConfig {
     pub cq_bot: BotConfig,
-    pub proxy: Option<String>,
-    pub api_key: ApiKey,
+    // pub proxy: Option<String>,
+    pub auth_token: AuthToken,
 }
 
 pub fn load_from_file(path: &Path) -> anyhow::Result<QBotConfig> {
@@ -29,5 +27,14 @@ pub fn load_from_file(path: &Path) -> anyhow::Result<QBotConfig> {
 }
 
 pub fn default_config() -> String {
-    r#""#.into()
+    r#"---
+cq_bot:
+  websocket: ws://localhost:8080/ws
+  bot_qq: 123
+  root_qq: 456
+proxy: 
+auth_token:
+  DeepSeek: sksksksk
+"#
+    .into()
 }

@@ -3,14 +3,9 @@ mod config;
 mod qbot;
 mod qbot_cmd;
 
-// mod command;
-// mod gpt;
-// mod history;
-// mod private_manager;
-// mod role;
+use std::path::Path;
 
 use clap::Parser;
-use std::path::Path;
 
 use crate::qbot::QBot;
 
@@ -42,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
     let config_path_str = args.config.unwrap_or("./config.yaml".into());
     let config_path = Path::new(&config_path_str);
     let config = config::load_from_file(config_path)?;
+    println!("config: {config:?}");
     let log_path_str = args.log_path.unwrap_or("./".into());
     let log_path = Path::new(&log_path_str);
 

@@ -8,3 +8,4 @@ mod role;
 mod session;
 
 pub use manager::ChatManager;
+pub use model::ModelConfiguration;

@@ -1,6 +1,22 @@
 pub(crate) use req::GptReqParam;
 pub(crate) use resp::GptRecvResult;
 
+pub async fn send_to_gpt(body: String, url: String, token: &str) -> anyhow::Result<GptRecvResult> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .bearer_auth(token)
+        .body(body)
+        .send()
+        .await
+        .map_err(|err| anyhow::anyhow!("client error: {err}"))?
+        .text()
+        .await
+        .map_err(|err| anyhow::anyhow!("client recv test err: {err}"))?;
+    Ok(serde_json::from_str::<GptRecvResult>(&resp)?)
+}
+
 pub(crate) mod req {
     pub(crate) struct GptReqParam {
         pub(crate) body: String,
@@ -9,15 +25,16 @@ pub(crate) mod req {
 }
 
 pub(crate) mod resp {
-    use serde::Deserialize;
     use std::fmt::Display;
-    use tracing::info;
+
+    use serde::Deserialize;
 
     #[derive(Debug, Deserialize)]
-    struct Usage {
-        prompt_tokens: i64,
-        completion_tokens: i64,
-        total_tokens: i64,
+    pub(crate) struct Usage {
+        pub(crate) prompt_tokens: i64,
+
+        pub(crate) completion_tokens: i64,
+        pub(crate) total_tokens: i64,
     }
 
     impl Display for Usage {
@@ -30,39 +47,26 @@ pub(crate) mod resp {
         }
     }
 
+    #[allow(unused)]
     #[derive(Debug, Deserialize)]
-    struct Message {
+    pub(crate) struct Message {
         role: crate::chat::message::MessageRole,
-        content: String,
+        pub(crate) content: String,
     }
 
     #[derive(Debug, Deserialize)]
-    struct Choices {
-        message: Message,
+    pub(crate) struct Choices {
+        pub(crate) message: Message,
     }
 
     #[allow(unused)]
     #[derive(Debug, Deserialize)]
-    pub struct GptRecvResult {
-        id: String,
-        object: String,
-        created: u64,
-        model: String,
-        choices: Vec<Choices>,
-        usage: Usage,
-    }
-
-    impl GptRecvResult {
-        pub fn to_message(&self) -> Option<crate::chat::message::Message> {
-            info!("[COST] finish chatgpt-api call {}", self.usage);
-            if self.choices.is_empty() {
-                None
-            } else {
-                Some(crate::chat::message::Message::new(
-                    self.choices[0].message.role.clone(),
-                    self.choices[0].message.content.clone(),
-                ))
-            }
-        }
+    pub(crate) struct GptRecvResult {
+        pub(crate) id: String,
+        pub(crate) object: String,
+        pub(crate) created: u64,
+        pub(crate) model: String,
+        pub(crate) choices: Vec<Choices>,
+        pub(crate) usage: Usage,
     }
 }
