@@ -9,6 +9,7 @@ pub struct Message {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum MessageRole {
     System,
     User,
